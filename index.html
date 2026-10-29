@@ -127,7 +127,7 @@
     // PASTE YOUR SCRIPT WEB APP URL HERE
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwDXz2XKEMdHUX8NfXxZ-WA_qnlv5iNVk3lWXFZPgEY3xbjkD3JxAHgYaCzhgC8uYOX/exec";
 
-    const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+     const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
     document.addEventListener('DOMContentLoaded', () => {
       const today = new Date();
@@ -138,14 +138,29 @@
 
     async function fetchBudgetStatus() {
       const selectedDate = document.getElementById('dateInput').value;
+      const pill = document.getElementById('budgetStatusPill');
+      pill.innerText = 'Syncing...';
+
       try {
-        const response = await fetch(`${SCRIPT_URL}?date=${encodeURIComponent(selectedDate)}`);
+        // Send a POST request to avoid CORS blocking
+        const response = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'get_budget',
+            date: selectedDate
+          })
+        });
+
         const result = await response.json();
         if (result.success && result.budgetInfo) {
           renderBudgetCard(result.budgetInfo);
+        } else {
+          pill.innerText = 'Unavailable';
         }
       } catch (err) {
         console.error("Budget fetch error:", err);
+        pill.innerText = 'Offline';
       }
     }
 
@@ -192,6 +207,7 @@
       const statusDiv = document.getElementById('statusMessage');
 
       const payload = {
+        action: 'save_expense',
         date: document.getElementById('dateInput').value,
         amount: document.getElementById('amountInput').value,
         category: document.getElementById('categoryInput').value,
@@ -202,7 +218,6 @@
       submitBtn.innerHTML = 'Saving to Sheet...';
 
       try {
-        // Use text/plain to avoid preflight CORS restrictions with Apps Script
         const response = await fetch(SCRIPT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -221,6 +236,7 @@
           document.getElementById('amountInput').value = '';
           document.getElementById('noteInput').value = '';
           
+          // Instantly refresh remaining budget balance
           if (res.budgetInfo) {
             renderBudgetCard(res.budgetInfo);
           }
