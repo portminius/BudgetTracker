@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Quick Expense</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      -webkit-tap-highlight-color: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-screen flex items-center justify-center p-3 sm:p-6">
+  <div class="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
+    
+    <!-- Top Header -->
+    <div class="bg-blue-600 px-6 py-5 text-white flex items-center justify-between">
+      <div>
+        <h1 class="text-lg font-bold">Log New Expense</h1>
+        <p class="text-xs text-blue-100">Live sync to Budget Tracker</p>
+      </div>
+      <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-lg font-bold">
+        💳
+      </div>
+    </div>
+
+    <!-- Expense Form -->
+    <form id="expenseForm" class="p-6 space-y-4" onsubmit="handleFormSubmit(event)">
+      <!-- Date Input -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Date</label>
+        <input 
+          type="date" 
+          id="dateInput" 
+          required 
+          onchange="fetchBudgetStatus()"
+          class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+        />
+      </div>
+
+      <!-- Amount Input -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Amount ($)</label>
+        <div class="relative">
+          <span class="absolute left-4 top-3 text-slate-400 font-bold text-base">$</span>
+          <input 
+            type="number" 
+            step="0.01" 
+            id="amountInput" 
+            placeholder="0.00" 
+            required 
+            class="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-lg font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+          />
+        </div>
+      </div>
+
+      <!-- Main Category Dropdown -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Budget Type</label>
+        <select 
+          id="categoryInput" 
+          class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white cursor-pointer">
+          <option value="Monthly">Monthly (Regular Spending)</option>
+          <option value="Annual">Annual (Annual Fund Reserve)</option>
+          <option value="Travel">Travel (Travel & Fun Fund)</option>
+        </select>
+      </div>
+
+      <!-- Description Note -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Description / Store</label>
+        <input 
+          type="text" 
+          id="noteInput" 
+          placeholder="e.g. Costco, Sakura Sushi, Exxon" 
+          class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+        />
+      </div>
+
+      <!-- Submit Button -->
+      <button 
+        type="submit" 
+        id="submitBtn" 
+        class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer mt-1">
+        <span>Save Expense</span>
+      </button>
+
+      <!-- Feedback Banner -->
+      <div id="statusMessage" class="hidden p-3 rounded-xl text-xs font-semibold text-center transition-all"></div>
+    </form>
+
+    <!-- BOTTOM REMAINING BUDGET CARD -->
+    <div class="px-6 pb-6 pt-1 border-t border-slate-100">
+      <div id="budgetCard" class="p-4 rounded-2xl bg-slate-50 border border-slate-200 transition-all">
+        <div class="flex items-center justify-between">
+          <span id="budgetMonthLabel" class="text-xs font-semibold text-slate-500">October 2026 Budget</span>
+          <span id="budgetStatusPill" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
+            Loading...
+          </span>
+        </div>
+
+        <div class="mt-2 flex items-baseline justify-between">
+          <div>
+            <span class="text-xs text-slate-400 block">Remaining Balance</span>
+            <span id="budgetRemainingAmount" class="text-2xl font-black text-slate-900">—</span>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-slate-400 block">Total Budget</span>
+            <span id="budgetTotalAmount" class="text-sm font-bold text-slate-700">—</span>
+          </div>
+        </div>
+
+        <div class="w-full bg-slate-200 rounded-full h-1.5 mt-3 overflow-hidden">
+          <div id="budgetProgressBar" class="h-1.5 rounded-full bg-blue-600 transition-all duration-500" style="width: 0%"></div>
+        </div>
+        <div class="flex justify-between text-[10px] text-slate-400 mt-1">
+          <span id="budgetSpentLabel">Spent: —</span>
+          <span id="budgetPercentLabel">—% used</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // PASTE YOUR SCRIPT WEB APP URL HERE
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwDXz2XKEMdHUX8NfXxZ-WA_qnlv5iNVk3lWXFZPgEY3xbjkD3JxAHgYaCzhgC8uYOX/exec";
+
+    const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const today = new Date();
+      const localDate = today.toISOString().split('T')[0];
+      document.getElementById('dateInput').value = localDate;
+      fetchBudgetStatus();
+    });
+
+    async function fetchBudgetStatus() {
+      const selectedDate = document.getElementById('dateInput').value;
+      try {
+        const response = await fetch(`${SCRIPT_URL}?date=${encodeURIComponent(selectedDate)}`);
+        const result = await response.json();
+        if (result.success && result.budgetInfo) {
+          renderBudgetCard(result.budgetInfo);
+        }
+      } catch (err) {
+        console.error("Budget fetch error:", err);
+      }
+    }
+
+    function renderBudgetCard(info) {
+      if (!info) return;
+
+      const card = document.getElementById('budgetCard');
+      const pill = document.getElementById('budgetStatusPill');
+      const monthLabel = document.getElementById('budgetMonthLabel');
+      const remEl = document.getElementById('budgetRemainingAmount');
+      const totalEl = document.getElementById('budgetTotalAmount');
+      const spentEl = document.getElementById('budgetSpentLabel');
+      const pctEl = document.getElementById('budgetPercentLabel');
+      const barEl = document.getElementById('budgetProgressBar');
+
+      monthLabel.innerText = info.monthName + ' Budget';
+      totalEl.innerText = fmt.format(info.budget);
+      spentEl.innerText = 'Spent: ' + fmt.format(info.spent);
+
+      const ratio = info.budget > 0 ? (info.spent / info.budget) * 100 : 0;
+      pctEl.innerText = ratio.toFixed(1) + '% used';
+      barEl.style.width = Math.min(ratio, 100) + '%';
+
+      if (info.remaining >= 0) {
+        card.className = 'p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 transition-all';
+        pill.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800';
+        pill.innerText = 'On Track';
+        remEl.className = 'text-2xl font-black text-emerald-700';
+        remEl.innerText = fmt.format(info.remaining) + ' Left';
+        barEl.className = 'h-1.5 rounded-full bg-emerald-600 transition-all duration-500';
+      } else {
+        card.className = 'p-4 rounded-2xl bg-rose-50/60 border border-rose-200 transition-all';
+        pill.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800';
+        pill.innerText = 'Over Budget';
+        remEl.className = 'text-2xl font-black text-rose-700';
+        remEl.innerText = fmt.format(Math.abs(info.remaining)) + ' Deficit';
+        barEl.className = 'h-1.5 rounded-full bg-rose-600 transition-all duration-500';
+      }
+    }
+
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+      const submitBtn = document.getElementById('submitBtn');
+      const statusDiv = document.getElementById('statusMessage');
+
+      const payload = {
+        date: document.getElementById('dateInput').value,
+        amount: document.getElementById('amountInput').value,
+        category: document.getElementById('categoryInput').value,
+        note: document.getElementById('noteInput').value
+      };
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = 'Saving to Sheet...';
+
+      try {
+        // Use text/plain to avoid preflight CORS restrictions with Apps Script
+        const response = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+
+        const res = await response.json();
+
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Save Expense';
+
+        if (res.success) {
+          statusDiv.className = 'p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold text-center block';
+          statusDiv.innerText = '✓ Expense saved!';
+          
+          document.getElementById('amountInput').value = '';
+          document.getElementById('noteInput').value = '';
+          
+          if (res.budgetInfo) {
+            renderBudgetCard(res.budgetInfo);
+          }
+
+          setTimeout(() => {
+            statusDiv.classList.add('hidden');
+          }, 3000);
+        } else {
+          statusDiv.className = 'p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-semibold text-center block';
+          statusDiv.innerText = 'Error: ' + res.error;
+        }
+      } catch (err) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Save Expense';
+        statusDiv.className = 'p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-semibold text-center block';
+        statusDiv.innerText = 'Network error: ' + err.message;
+      }
+    }
+  </script>
+</body>
+</html>
